@@ -21,23 +21,41 @@ brew install v0rest/tap/busysign
 
 The full name matters. Homebrew only loads formulae from third-party taps you trust, and naming the formula in full adds the tap and trusts this one formula in one go. A plain `brew install busysign` would be refused.
 
-On a Mac with Apple silicon Homebrew downloads a ready build, made and tested on macOS 15, 26 and 27 - a newer macOS gets the newest of them. On an Intel Mac it builds the app from source with the Swift compiler from the Command Line Tools, which takes a little longer. Either way the app is signed ad hoc, since there is no paid Apple developer account behind it. It stays in Homebrew's folder, not in /Applications, and you start it with
+On a Mac with Apple silicon Homebrew downloads a ready build, made and tested on macOS 15, 26 and 27 - a newer macOS gets the newest of them. On an Intel Mac it builds the app from source with the Swift compiler from the Command Line Tools, which takes a little longer. Either way the app is signed ad hoc, since there is no paid Apple developer account behind it yet. It stays in Homebrew's folder, not in /Applications, and you start it with
 
 ```sh
 open "$(brew --prefix)/opt/busysign/BusySign.app"
 ```
 
+To have it in /Applications as well, add a link there once - that needs an admin account, with a standard one link it into ~/Applications instead (`mkdir -p ~/Applications` first if it isn't there). The link points at Homebrew's `opt` folder, so it keeps working after every upgrade. Finder opens BusySign through it, Spotlight doesn't list the link.
+
+```sh
+ln -sfn "$(brew --prefix)/opt/busysign/BusySign.app" /Applications/BusySign.app
+```
+
+This will get simpler. The enrollment in the Apple Developer Program is submitted and waits for Apple's approval, which can take from a few days to a few weeks. Once it's through, the plan is to sign BusySign with a Developer ID, have Apple notarize it and ship it as a Homebrew cask, which installs it straight into /Applications, and with a stable signature macOS keeps its calendar access across upgrades. Until then it works as described here.
+
 ## First run
 
 BusySign has no Dock icon, it lives in the menu bar as a small door-hanger sign. The first time it starts, macOS asks whether BusySign may access your calendars - allow it, without that it can't do anything.
 
+<p align="center"><img src="docs/images/calendar-access.png" alt="macOS asks whether BusySign may access your calendars" width="258"></p>
+
 Then open Settings… from the menu-bar icon. It shows one row per account, its main calendar under a short name like "Acme" that you can change with the pencil, and the account's other calendars under "Other calendars". Nothing is ticked at first, so tick the calendars you want to keep in sync and click Apply in the bar that shows up at the bottom of the window - nothing runs until at least two are ticked and applied. Calendars BusySign can't write to, birthdays and subscribed calendars aren't listed unless already ticked.
 
-It starts in dry run. It reads the selected calendars and works out what it would do, but writes nothing. The menu shows something like "Dry run: would add 14, remove 0" and a line per calendar like "Acme → Initech: 12 meetings". Look at whether those numbers make sense for your next few weeks. When they do, pick "Switch to live" in the menu (or Mode → Live in Settings), it asks once more with what the last dry run planned, and from then on every run writes. "Switch to live" stays greyed until a dry run with the current settings has finished, and while changes wait for Apply it says "Apply or revert your changes first", and a click on Live in Settings makes the Apply bar flash. Dry run really writes nothing, not even when you untick a calendar and apply, so the Busy blocks in that calendar wait for Live, see below.
+<p align="center"><img src="docs/images/settings.png" alt="BusySign Settings with three calendars ticked, one pair showing titles, in Dry run" width="520"></p>
+
+It starts in dry run. It reads the selected calendars and works out what it would do, but writes nothing. The menu shows something like "Dry run: would add 70, remove 0" and a line per calendar like "Acme → Home, Initech: 25 meetings". Look at whether those numbers make sense for your next few weeks. When they do, pick "Switch to live" in the menu (or Mode → Live in Settings), it asks once more with what the last dry run planned, and from then on every run writes. "Switch to live" stays greyed until a dry run with the current settings has finished, and while changes wait for Apply it says "Apply or revert your changes first", and a click on Live in Settings makes the Apply bar flash. Dry run really writes nothing, not even when you untick a calendar and apply, so the Busy blocks in that calendar wait for Live, see below.
+
+<p align="center"><img src="docs/images/menu.png" alt="The BusySign menu in Dry run with one line per calendar" width="301"></p>
+
+<p align="center"><img src="docs/images/live-confirm.png" alt="The confirmation before switching to Live" width="262"></p>
 
 By default it looks 30 days ahead, checks every 5 minutes and shortly after anything changes in Calendar, and starts at login. All of that can be changed in Settings. BusySign only sees what Calendar has already synced, so a meeting booked on the server turns into a Busy block once Calendar has picked it up.
 
 A change that decides what BusySign writes doesn't take effect when you make it, it waits for Apply. That goes for the calendar ticks, Look ahead, "Treat unanswered invitations as busy", the "Blocks from … show" lines, the short names and "Clear exclusions" in Settings, and for the checkboxes and Title boxes in the Meetings window. While something waits, a bar at the bottom of Settings and of the Meetings window says what it would do, worked out like a dry run, say "3 changes · would add 640, remove 0", with "Working out…" for a moment while it counts. It shows up as soon as you change something, also while you're still typing a Look ahead or a short name, no Return needed, and Escape in that field puts back what it had before you started typing. That's where you catch a calendar ticked by mistake, before a single block is written. When the counts can't be worked out, say a calendar can't be read, the bar shows the reason instead and Apply stays greyed until they can, it tries again every 10 seconds for the first minute and then every minute, and clears by itself once the cause is gone. When a calendar suddenly shows no events, the bar gives the counts with that reason after them, still with Apply greyed, and it clears by itself after about five minutes or as soon as the calendar's events are back. Shortening Look ahead is the one case Apply takes at once, since a calendar can easily have no meeting of its own in the shorter window. Mode, Check every, Start at login, pausing and "Remove all Busy copies…" act at once.
+
+<p align="center"><img src="docs/images/apply-bar.png" alt="The bar at the bottom of Settings with a change waiting for Apply" width="520"></p>
 
 Apply makes the changes your settings, in Live the next run writes them and in Dry run the next dry run shows them in the menu, and Revert throws them away. Unticking a calendar doesn't ask anything, the bar adds how many Busy blocks would go from it, say "remove 12 from Initech". In Live Apply removes them right away, since no run would clean them up later. If only one ticked calendar would be left, syncing stops, the bar ends with "syncing stops" and Apply clears that calendar's Busy blocks as well. Closing the window keeps the changes waiting and the menu then shows "Changes not applied - open Settings", while quitting BusySign drops them.
 
@@ -48,6 +66,8 @@ In Dry run Apply removes nothing, the removal waits for Live instead, also acros
 An event counts as busy unless it's marked free or you declined it. Invitations you haven't answered don't count, unless you switch on "Treat unanswered invitations as busy". All-day events count only when they're marked busy or out of office, so an all-day reminder that shows as free doesn't block the whole day. If the other calendar already has a real busy event at exactly the same time, say the same meeting you were invited to on both sides, BusySign doesn't put a Busy block on top of it.
 
 Meetings… in the menu, or the button next to the status in Settings, opens a window with every meeting BusySign looks at, grouped by the calendar it comes from. A ticked meeting gets a Busy block in the other calendars its calendar copies to, untick it and BusySign leaves it out. A recurring series is one row with one checkbox for the whole series - open it to tick or untick single days, and the box shows a dash when only some days are copied. Meetings BusySign doesn't copy anyway, declined or marked free for example, are listed greyed with the reason. These ticks wait for Apply like the settings do, with the same bar at the bottom of the window, and until then the header says "Changes not applied" instead of the counts. In Live the next sync after Apply writes them, and the rows then say what was added, moved or removed. The titles show only in this window on this Mac, unless you let a calendar's copies show them as described below, and BusySign keeps your choices on this Mac as well, as opaque keys rather than titles.
+
+<p align="center"><img src="docs/images/meetings.png" alt="The Meetings window with meetings per calendar, Title boxes and Not copied" width="640"></p>
 
 ## What the copies look like
 
@@ -94,6 +114,7 @@ Remove the Busy blocks first, while the app is still there. In Settings, under C
 Once the summary shows up, switch off "Start at login", quit BusySign from its menu and remove it.
 
 ```sh
+rm -f /Applications/BusySign.app ~/Applications/BusySign.app   # the link, if you added one
 brew uninstall busysign
 brew untap v0rest/tap
 ```
