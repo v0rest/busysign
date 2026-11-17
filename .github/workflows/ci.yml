@@ -1,7 +1,8 @@
 name: CI
 
 # Script tests, the commit e-mail check, and build, tests and the app bundle on macOS 15 (Swift 6.0), 26 and 27.
-# ci-ok is the one required check. Also called by release.yml for a release tag.
+# ci-ok is the one required check. Also called by release.yml for a release tag. No path filters: a change to docs only
+# (*.md, images under docs/) still runs, and ci-ok still reports, but the changes job lets the macOS legs skip it.
 on:
   push:
     branches: [main]
@@ -21,6 +22,34 @@ defaults:
     shell: bash
 
 jobs:
+  # Decides whether the macOS legs run: code=false only for a pull request or main push that changes docs alone.
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify the change
+        id: classify
+        # GITHUB_SHA is the commit checked out above; for a pull request, the merge of the PR into its base.
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          result="$(scripts/changed-code.sh "$EVENT" "$REF" "$GITHUB_SHA" "$BEFORE" "$AFTER")"
+          echo "$result" >> "$GITHUB_OUTPUT"
+
   scripts:
     name: scripts
     runs-on: ubuntu-24.04
@@ -66,6 +95,8 @@ jobs:
 
   macos:
     name: macos (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -118,7 +149,7 @@ jobs:
 
   ci-ok:
     name: ci-ok # the required check; keep the name
-    needs: [scripts, authors, macos]
+    needs: [changes, scripts, authors, macos]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -130,10 +161,12 @@ jobs:
         with:
           persist-credentials: false
 
-      # authors is skipped on purpose for a release tag; scripts and macos must succeed.
+      # authors is skipped on purpose for a release tag, macos for a change to docs only (changes: code=false).
       - name: Check the results
         env:
           SCRIPTS: ${{ needs.scripts.result }}
           AUTHORS: ${{ needs.authors.result }}
           MACOS: ${{ needs.macos.result }}
-        run: scripts/ci-ok.sh "$SCRIPTS" "$AUTHORS" "$MACOS"
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
+        run: scripts/ci-ok.sh "$SCRIPTS" "$AUTHORS" "$MACOS" "$CHANGES" "$CODE"
