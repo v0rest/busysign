@@ -1,0 +1,139 @@
+name: CI
+
+# Script tests, the commit e-mail check, and build, tests and the app bundle on macOS 15 (Swift 6.0), 26 and 27.
+# ci-ok is the one required check. Also called by release.yml for a release tag.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions: {}
+
+# A pull request keeps one run per PR. A push to main (and release.yml's call for a tag) gets one group per ref and
+# commit, so a later push can't replace a pending run and leave a commit's authors unchecked.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || format('{0}@{1}', github.ref, github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  scripts:
+    name: scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Script tests
+        run: scripts/tests/run-tests.sh
+
+  authors:
+    name: authors
+    # Pull requests and branch pushes only. A release tag (release.yml calls this workflow on a tag push) is already
+    # on main, whose pushes this job has checked.
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check commit e-mails
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          range="$(scripts/authors-range.sh "$EVENT" "$BEFORE" "$AFTER" "$PR_BASE" "$PR_HEAD")"
+          echo "range: $range"
+          scripts/check-authors.sh "$range"
+
+  macos:
+    name: macos (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            developer_dir: /Applications/Xcode_16.app # Swift 6.0, the package's swift-tools-version
+          - os: macos-26
+            developer_dir: "" # the runner's default Xcode
+          # macOS 27, GitHub's preview image: its Command Line Tools lack the SwiftUI macro plugin that the 27 SDK
+          # needs, so build-app.sh falls back to their older SDK (scripts/pick-sdk.sh).
+          - os: xcode-27
+            developer_dir: ""
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # DEVELOPER_DIR is exported inside these steps only: it overrides xcode-select, so it must not reach the
+      # Command Line Tools steps below.
+      - name: Swift build and tests with Xcode
+        env:
+          XCODE_DIR: ${{ matrix.developer_dir }}
+        run: |
+          if [ -n "$XCODE_DIR" ]; then
+            export DEVELOPER_DIR="$XCODE_DIR"
+          fi
+          sw_vers
+          xcrun --find swift
+          swift --version
+          swift build
+          swift test
+
+      # A switch that did not take would build the app with Xcode and pass this gate without Command Line Tools.
+      - name: Select Command Line Tools
+        run: |
+          sudo xcode-select -s /Library/Developer/CommandLineTools
+          scripts/check-toolchain.sh /Library/Developer/CommandLineTools
+
+      - name: Build and check the app with Command Line Tools
+        run: |
+          sw_vers
+          swift --version
+          scripts/build-app.sh --output "$RUNNER_TEMP/BusySign.app"
+          scripts/check-app.sh "$RUNNER_TEMP/BusySign.app"
+
+  ci-ok:
+    name: ci-ok # the required check; keep the name
+    needs: [scripts, authors, macos]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # authors is skipped on purpose for a release tag; scripts and macos must succeed.
+      - name: Check the results
+        env:
+          SCRIPTS: ${{ needs.scripts.result }}
+          AUTHORS: ${{ needs.authors.result }}
+          MACOS: ${{ needs.macos.result }}
+        run: scripts/ci-ok.sh "$SCRIPTS" "$AUTHORS" "$MACOS"
