@@ -76,6 +76,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.title = "BusySign Settings"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.isReleasedWhenClosed = false
+        // The window is made once and shown again and again. Without this macOS keeps it on the Space where it was
+        // last shown and takes the user there; with it, it comes to the Space the user is on.
+        window.collectionBehavior.insert([.moveToActiveSpace, .fullScreenAuxiliary])
         window.setContentSize(NSSize(width: 520, height: 560))
         window.center()
         window.delegate = self
