@@ -44,6 +44,8 @@ final class MeetingsWindowController: NSObject, NSWindowDelegate {
         window.title = "BusySign Meetings"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.isReleasedWhenClosed = false
+        // Like Settings: comes to the Space the user is on instead of taking the user to the one it was last shown on.
+        window.collectionBehavior.insert([.moveToActiveSpace, .fullScreenAuxiliary])
         window.delegate = self
         window.setContentSize(NSSize(width: 640, height: 640))
         window.center()
