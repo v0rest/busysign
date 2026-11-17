@@ -161,17 +161,23 @@ private extension MeetingsCatalog {
         #expect(r.sections.map(\.source) == [B, A])
         #expect(r.sections.map(\.targets) == [[A], [B]])
         let a = try r.section(A)
-        #expect(a.rows.map(\.id) == (try [key(before), seriesKey(standUp[0]), key(between)]))
+        let rowIDs = try [key(before), seriesKey(standUp[0]), key(between)]
+        #expect(a.rows.map(\.id) == rowIDs)
         #expect(a.rows.map(\.isSeries) == [false, true, false])
-        #expect(a.rows[1].occurrences.map(\.id) == (try standUp.map(key)))
+        let standUpKeys = try standUp.map(key)
+        #expect(a.rows[1].occurrences.map(\.id) == standUpKeys)
         #expect(a.rows[1].occurrences.map(\.start) == standUp.map(\.start))
         #expect(a.rows[1].occurrences.allSatisfy { $0.localID == "A-standup" && $0.isOn && $0.label == nil })
-        #expect(a.rows[1].occurrences.map(\.seriesKey) == Array(repeating: try seriesKey(standUp[0]), count: 3))
-        #expect(a.rows[1].occurrences.map(\.includeKey) == (try standUp.map(includeKey)))
+        let standUpSeries = try seriesKey(standUp[0])
+        #expect(a.rows[1].occurrences.map(\.seriesKey) == Array(repeating: standUpSeries, count: 3))
+        let standUpIncludes: [String?] = try standUp.map(includeKey)
+        #expect(a.rows[1].occurrences.map(\.includeKey) == standUpIncludes)
+        let beforeKey = try key(before)
+        let beforeInclude = try includeKey(before)
         #expect(a.rows[0].occurrences == [
-            MeetingsCatalog.Occurrence(id: try key(before), localID: before.localID, start: before.start,
+            MeetingsCatalog.Occurrence(id: beforeKey, localID: before.localID, start: before.start,
                                        end: before.end, isAllDay: false, isOn: true, titleShown: true, label: nil,
-                                       seriesKey: nil, includeKey: try includeKey(before)),
+                                       seriesKey: nil, includeKey: beforeInclude),
         ])
         #expect(a.count == 5)
         #expect(try r.section(B).rows.map(\.id) == [try key(inB)])
@@ -228,7 +234,8 @@ private extension MeetingsCatalog {
         let r = catalog([a, declined], excluded: [try key(a)])
 
         let rows = try r.section(A).rows
-        #expect(rows.map(\.id) == [try key(a)])
+        let aKey = try key(a)
+        #expect(rows.map(\.id) == [aKey])
         #expect(rows.map(\.tick) == [.off])
         #expect(rows[0].occurrences.map(\.isOn) == [false])
         #expect(rows[0].occurrences.map(\.localID) == [a.localID])
@@ -438,15 +445,19 @@ private extension MeetingsCatalog {
         let r = catalog(days + [single])
         let rows = try r.section(A).rows
         #expect(r.sections.map(\.id) == ["A", "B"])
-        #expect(rows.map(\.id) == (try [seriesKey(days[0]), key(single)]))
-        #expect(rows[0].occurrences.map(\.id) == (try days.map(key)))
-        #expect(rows[1].occurrences.map(\.id) == [try key(single)])
+        let rowIDs = try [seriesKey(days[0]), key(single)]
+        #expect(rows.map(\.id) == rowIDs)
+        let dayKeys = try days.map(key)
+        #expect(rows[0].occurrences.map(\.id) == dayKeys)
+        let singleKey = try key(single)
+        #expect(rows[1].occurrences.map(\.id) == [singleKey])
 
         // Excluding a meeting or a new earlier meeting changes neither the ids nor what each id holds.
         let early = orig("A", "early", start: t0 - 7200)
         let after = catalog([early] + days + [single], excluded: [try key(single)])
         let afterRows = try after.section(A).rows
-        #expect(afterRows.map(\.id) == (try [key(early), seriesKey(days[0]), key(single)]))
+        let afterRowIDs = try [key(early), seriesKey(days[0]), key(single)]
+        #expect(afterRows.map(\.id) == afterRowIDs)
         #expect(Array(afterRows.dropFirst()).map { $0.occurrences.map(\.localID) }
             == rows.map { $0.occurrences.map(\.localID) })
         #expect(Array(afterRows.dropFirst()).map { $0.occurrences.map(\.start) }
@@ -459,12 +470,13 @@ private extension MeetingsCatalog {
         let declined = orig("A", "d", response: .declined)
         let events = [declined, copy("B", of: declined, local: "c-d")]
         let dry = result(events)
-        #expect(dry.changes.map(\.occurrenceKey) == [try key(declined)])
+        let declinedKey = try key(declined)
+        #expect(dry.changes.map(\.occurrenceKey) == [declinedKey])
 
         let r = meetingsCatalog(result: dry, selected: [A, B], excluded: [], lastLiveChanges: [])
         #expect(r.notCopied.map(\.reason) == [.declined])
         #expect(r.removals == [
-            MeetingsCatalog.Removal(id: "B|" + (try key(declined)), target: B, start: declined.start,
+            MeetingsCatalog.Removal(id: "B|" + declinedKey, target: B, start: declined.start,
                                     end: declined.end, isAllDay: false, count: 1, isDuplicate: false),
         ])
 
@@ -921,21 +933,25 @@ private extension MeetingsCatalog {
         let r = catalog([single] + days, excluded: other)
 
         let off = toggling(try r.occurrence(try key(single)), to: false, in: other)
-        #expect(off == other.union([try key(single)]))
+        let singleKey = try key(single)
+        #expect(off == other.union([singleKey]))
         let unticked = catalog([single] + days, excluded: off)
         #expect(try unticked.occurrence(try key(single)).isOn == false)
-        #expect(toggling(try unticked.occurrence(try key(single)), to: true, in: off) == other)
+        let untickedSingle = try unticked.occurrence(singleKey)
+        #expect(toggling(untickedSingle, to: true, in: off) == other)
 
         // A day of a series that is not excluded uses its own occurrence key, never the include key.
         let dayOff = toggling(try r.occurrence(try key(days[1])), to: false, in: other)
-        #expect(dayOff == other.union([try key(days[1])]))
+        let secondDayKey = try key(days[1])
+        #expect(dayOff == other.union([secondDayKey]))
         #expect(try catalog([single] + days, excluded: dayOff).row(try seriesKey(days[0])).tick == .mixed)
 
         // A single meeting's row acts on its one occurrence and never adds a series key.
         let row = try r.row(try key(single))
         #expect(!row.isSeries)
         #expect(toggling(row, in: other) == off)
-        #expect(toggling(try unticked.row(try key(single)), in: off) == other)
+        let untickedRow = try unticked.row(singleKey)
+        #expect(toggling(untickedRow, in: off) == other)
     }
 
     @Test func togglingInsideExcludedSeriesUsesInclude() throws {
@@ -946,17 +962,21 @@ private extension MeetingsCatalog {
         #expect(r.allOccurrences.map(\.isOn) == [false, false, false])
 
         let on = toggling(try r.occurrence(try key(days[1])), to: true, in: excluded)
-        #expect(on == [id, try includeKey(days[1])])
+        let secondDayInclude = try includeKey(days[1])
+        #expect(on == [id, secondDayInclude])
         let ticked = catalog(days, excluded: on)
         #expect(ticked.allOccurrences.map(\.isOn) == [false, true, false])
         #expect(try ticked.row(id).tick == .mixed)
 
-        #expect(toggling(try ticked.occurrence(try key(days[1])), to: false, in: on) == excluded)
+        let tickedDay = try ticked.occurrence(try key(days[1]))
+        #expect(toggling(tickedDay, to: false, in: on) == excluded)
 
         // A day also excluded by its own key: ticking drops that key and adds the include key.
         let both: Set<String> = [id, try key(days[0])]
         let r2 = catalog(days, excluded: both)
-        #expect(toggling(try r2.occurrence(try key(days[0])), to: true, in: both) == [id, try includeKey(days[0])])
+        let doublyExcludedDay = try r2.occurrence(try key(days[0]))
+        let firstDayInclude = try includeKey(days[0])
+        #expect(toggling(doublyExcludedDay, to: true, in: both) == [id, firstDayInclude])
     }
 
     @Test func togglingSeriesOnMixedOff() throws {
@@ -996,7 +1016,8 @@ private extension MeetingsCatalog {
         days[1].myResponse = .declined
         var keys: Set<String> = [id, try includeKey(days[1])]
         let row = try catalog(days, excluded: keys).row(id)
-        #expect(Set(row.relatedKeys) == Set(try days.map(key) + days.map(includeKey)))
+        let everyDayKey = try days.map(key) + days.map(includeKey)
+        #expect(Set(row.relatedKeys) == Set(everyDayKey))
 
         keys = toggling(row, in: keys)
         #expect(keys.isEmpty)
@@ -1301,14 +1322,17 @@ private extension MeetingsCatalog {
         let day = try titles(hidden).occurrence(try key(days[1]))
         #expect(!day.titleShown)
         let dayShown = toggling(day, to: true, in: hidden)
-        #expect(dayShown == hidden.union([try includeKey(days[1])]))
+        let secondDayInclude = try includeKey(days[1])
+        #expect(dayShown == hidden.union([secondDayInclude]))
         #expect(try titles(dayShown).row(id).occurrences.map(\.titleShown) == [false, true, false])
-        #expect(toggling(try titles(dayShown).occurrence(try key(days[1])), to: false, in: dayShown) == hidden)
+        let shownDay = try titles(dayShown).occurrence(try key(days[1]))
+        #expect(toggling(shownDay, to: false, in: dayShown) == hidden)
 
         // A single meeting's row flips its own key and never adds a series key.
         let singleRow = try titles(other).row(try key(single))
         let singleHidden = toggling(singleRow, tick: singleRow.titleTick, in: other)
-        #expect(singleHidden == other.union([try key(single)]))
+        let singleKey = try key(single)
+        #expect(singleHidden == other.union([singleKey]))
         let back = try titles(singleHidden).row(try key(single))
         #expect(back.titleTick == .off)
         #expect(toggling(back, tick: back.titleTick, in: singleHidden) == other)
@@ -1347,10 +1371,11 @@ private extension MeetingsCatalog {
         #expect(seriesPattern(daily, isAllDay: false, calendar: cal) == .daily(time: time(9, 0)))
 
         let differentTimes = [try at(3, 22, 10), try at(3, 23, 11)]
-        #expect(seriesPattern(differentTimes, isAllDay: false, calendar: cal) == .irregular(first: try at(3, 22, 10)))
+        let march22At10 = try at(3, 22, 10)
+        #expect(seriesPattern(differentTimes, isAllDay: false, calendar: cal) == .irregular(first: march22At10))
         let mondayWednesdayFriday = try [22, 24, 26].map { try at(3, $0, 10) }
         #expect(seriesPattern(mondayWednesdayFriday, isAllDay: false, calendar: cal)
-            == .irregular(first: try at(3, 22, 10)))
+            == .irregular(first: march22At10))
 
         let allDay = try [4, 11].map { try at(3, $0) }
         #expect(seriesPattern(allDay, isAllDay: true, calendar: cal) == .weekly(weekday: 5, time: DateComponents()))
@@ -1370,20 +1395,25 @@ private extension MeetingsCatalog {
         let occurrence = series("A", "s", count: 1)[0]
         let removed = result([occurrence, copy("B", of: occurrence, local: "c1")],
                              excluded: [try seriesKey(occurrence)]).changes
+        let keyOfOccurrence = try key(occurrence)
+        let seriesOfOccurrence = try seriesKey(occurrence)
+        let includeOfOccurrence = try includeKey(occurrence)
         #expect(removed == [
             PlannedChange(kind: .remove, target: B, start: occurrence.start, end: occurrence.end, isAllDay: false,
-                          source: A, sourceLocalID: occurrence.localID, occurrenceKey: try key(occurrence),
-                          seriesKey: try seriesKey(occurrence), includeKey: try includeKey(occurrence)),
+                          source: A, sourceLocalID: occurrence.localID, occurrenceKey: keyOfOccurrence,
+                          seriesKey: seriesOfOccurrence, includeKey: includeOfOccurrence),
         ])
 
         // Duplicates of a copy that stays carry the kept copy's original's keys.
         let a = orig("A", "a", start: t0 + 3600)
         let duplicates = result([a, copy("B", of: a, local: "c-keep", ext: "e1"),
                                  copy("B", of: a, local: "c-drop", ext: "e2")]).changes
+        let keyOfA = try key(a)
+        let includeOfA = try includeKey(a)
         #expect(duplicates == [
             PlannedChange(kind: .removeDuplicates, target: B, start: a.start, end: a.end, isAllDay: false,
-                          source: A, sourceLocalID: a.localID, duplicatesRemoved: 1, occurrenceKey: try key(a),
-                          includeKey: try includeKey(a)),
+                          source: A, sourceLocalID: a.localID, duplicatesRemoved: 1, occurrenceKey: keyOfA,
+                          includeKey: includeOfA),
         ])
 
         // Without a visible original there is nothing to take keys from.

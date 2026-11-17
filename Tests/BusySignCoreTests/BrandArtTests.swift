@@ -99,12 +99,14 @@ struct DesignBitmap {
     }
 
     @Test func iconTileIsTeal() throws {
-        #expect(isTeal(try icon().pixel(x: 100, y: 110)))
+        let p = try icon().pixel(x: 100, y: 110)
+        #expect(isTeal(p))
     }
 
     /// The ring between the gold knob (r 6.5) and the cut (r 10.5) shows the tile, not the hanger.
     @Test func iconHoleShowsTheTile() throws {
-        #expect(isTeal(try icon().pixel(x: 64, y: 42)))
+        let p = try icon().pixel(x: 64, y: 42)
+        #expect(isTeal(p))
     }
 
     /// Lighter green (#1fb38a) at the top-left, darker teal (#0f7d8c) at the bottom-right.

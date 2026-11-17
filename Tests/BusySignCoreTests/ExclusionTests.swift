@@ -105,7 +105,8 @@ private func skipped(_ o: EventSnapshot, _ reason: SkippedOriginal.Reason,
 
     @Test func occurrenceKeysDifferPerOccurrence() throws {
         let occurrences = series()
-        #expect(Set(try occurrences.map(occurrenceKey)).count == occurrences.count)
+        let keys = try occurrences.map(occurrenceKey)
+        #expect(Set(keys).count == occurrences.count)
     }
 
     @Test func singleEventHasNoSeriesKey() {
@@ -116,7 +117,8 @@ private func skipped(_ o: EventSnapshot, _ reason: SkippedOriginal.Reason,
 
     @Test func includeKeyFormat() throws {
         let e = orig("A", "evt", recurring: true)
-        #expect(ExclusionKey.include(for: e) == "i:" + (try #require(Marker.make(for: e))))
+        let marker = try #require(Marker.make(for: e))
+        #expect(ExclusionKey.include(for: e) == "i:" + marker)
         #expect(ExclusionKey.include(for: orig("A", nil, recurring: true)) == nil)
     }
 
@@ -171,9 +173,11 @@ private func skipped(_ o: EventSnapshot, _ reason: SkippedOriginal.Reason,
     @Test func existingKeysUnchanged() throws {
         let occurrences = series()
         let events = occurrences + copiesInB(of: occurrences)
-        #expect(reconcile(events: events, settings: settings(excluded: [try occurrenceKey(occurrences[1])]),
+        let secondOccurrence = try occurrenceKey(occurrences[1])
+        #expect(reconcile(events: events, settings: settings(excluded: [secondOccurrence]),
                           window: window) == [.delete(localID: "c1", target: B)])
-        #expect(reconcile(events: events, settings: settings(excluded: [try seriesKey(occurrences[0])]),
+        let wholeSeries = try seriesKey(occurrences[0])
+        #expect(reconcile(events: events, settings: settings(excluded: [wholeSeries]),
                           window: window) == [
             .delete(localID: "c0", target: B), .delete(localID: "c1", target: B), .delete(localID: "c2", target: B),
         ])
@@ -247,8 +251,10 @@ private func skipped(_ o: EventSnapshot, _ reason: SkippedOriginal.Reason,
         let unsynced = orig("A", nil, start: t0 + 7200)
         let listed = notBusyOriginals(events: [declined, unsynced], settings: settings(), window: window)
         #expect(listed.map(\.reason) == [.declined, .notSyncedYet])
-        #expect(listed.map(\.occurrenceKey) == [try occurrenceKey(declined), nil])
-        #expect(listed.map(\.seriesKey) == [try seriesKey(declined), nil])
+        let declinedOccurrence = try occurrenceKey(declined)
+        #expect(listed.map(\.occurrenceKey) == [declinedOccurrence, nil])
+        let declinedSeries = try seriesKey(declined)
+        #expect(listed.map(\.seriesKey) == [declinedSeries, nil])
     }
 
     @Test func addAndMoveCarryTheOriginalsKeys() throws {
@@ -261,10 +267,11 @@ private func skipped(_ o: EventSnapshot, _ reason: SkippedOriginal.Reason,
         let changes = plannedChanges(for: reconcile(events: events, settings: settings(), window: window),
                                      events: events, settings: settings(), window: window)
         #expect(changes.map(\.kind) == [.add, .add, .move, .add])
-        #expect(changes.map(\.occurrenceKey) == [
+        let keysInOrder: [String?] = [
             try occurrenceKey(occurrences[0]), try occurrenceKey(single),
             try occurrenceKey(occurrences[1]), try occurrenceKey(occurrences[2]),
-        ])
+        ]
+        #expect(changes.map(\.occurrenceKey) == keysInOrder)
         let seriesOfAll = try seriesKey(occurrences[0])
         #expect(changes.map(\.seriesKey) == [seriesOfAll, nil, seriesOfAll, seriesOfAll])
     }
@@ -276,10 +283,12 @@ private func skipped(_ o: EventSnapshot, _ reason: SkippedOriginal.Reason,
         let s = settings(excluded: [try occurrenceKey(a)])
         let changes = plannedChanges(for: reconcile(events: [a, c], settings: s, window: window),
                                      events: [a, c], settings: s, window: window)
+        let keyOfA = try occurrenceKey(a)
+        let includeOfA = try includeKey(a)
         #expect(changes == [
             PlannedChange(kind: .remove, target: B, start: a.start, end: a.end, isAllDay: false,
-                          source: A, sourceLocalID: a.localID, occurrenceKey: try occurrenceKey(a),
-                          includeKey: try includeKey(a)),
+                          source: A, sourceLocalID: a.localID, occurrenceKey: keyOfA,
+                          includeKey: includeOfA),
         ])
     }
 }
@@ -344,8 +353,11 @@ private func mirrored(_ events: [EventSnapshot], _ s: SyncSettings = settings())
         let occurrences = series()
         let single = orig("A", "single", start: t0 + 7200)
         let events = occurrences + [single, copy("B", of: single, local: "c1", ext: "x")]
-        #expect(mirrored(events, settings(excluded: [try seriesKey(occurrences[0])])) == [item(B, of: single)])
-        #expect(mirrored(events, settings(excluded: [try occurrenceKey(occurrences[1]), try occurrenceKey(single)]))
+        let wholeSeries = try seriesKey(occurrences[0])
+        #expect(mirrored(events, settings(excluded: [wholeSeries])) == [item(B, of: single)])
+        let secondOccurrence = try occurrenceKey(occurrences[1])
+        let singleOccurrence = try occurrenceKey(single)
+        #expect(mirrored(events, settings(excluded: [secondOccurrence, singleOccurrence]))
             == [item(B, of: occurrences[0]), item(B, of: occurrences[2])])
     }
 
