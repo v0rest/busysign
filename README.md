@@ -43,13 +43,13 @@ BusySign has no Dock icon, it lives in the menu bar as a small door-hanger sign.
 
 Then open Settings… from the menu-bar icon. It shows one row per account, its main calendar under a short name like "Acme" that you can change with the pencil, and the account's other calendars under "Other calendars". Nothing is ticked at first, so tick the calendars you want to keep in sync and click Apply in the bar that shows up at the bottom of the window - nothing runs until at least two are ticked and applied. Calendars BusySign can't write to, birthdays and subscribed calendars aren't listed unless already ticked.
 
-<p align="center"><img src="docs/images/settings.png" alt="BusySign Settings with three calendars ticked and a change waiting for Apply" width="632"></p>
+<p align="center"><img src="docs/images/settings.png" alt="BusySign Settings with three calendars ticked and a change waiting for Apply" width="520"></p>
 
 It starts in dry run. It reads the selected calendars and works out what it would do, but writes nothing. The menu shows something like "Dry run: would add 70, remove 0" and a line per calendar like "Acme → Home, Initech: 25 meetings". Look at whether those numbers make sense for your next few weeks. When they do, pick "Switch to live" in the menu (or Mode → Live in Settings), it asks once more with what the last dry run planned, and from then on every run writes. "Switch to live" stays greyed until a dry run with the current settings has finished, and while changes wait for Apply it says "Apply or revert your changes first", and a click on Live in Settings makes the Apply bar flash. Dry run really writes nothing, not even when you untick a calendar and apply, so the Busy blocks in that calendar wait for Live, see below.
 
-<p align="center"><img src="docs/images/menu.png" alt="The BusySign menu in Dry run with one line per calendar" width="449"></p>
+<p align="center"><img src="docs/images/menu.png" alt="The BusySign menu in Dry run with one line per calendar" width="301"></p>
 
-<p align="center"><img src="docs/images/live-confirm.png" alt="The confirmation before switching to Live" width="384"></p>
+<p align="center"><img src="docs/images/live-confirm.png" alt="The confirmation before switching to Live" width="262"></p>
 
 By default it looks 30 days ahead, checks every 5 minutes and shortly after anything changes in Calendar, and starts at login. All of that can be changed in Settings. BusySign only sees what Calendar has already synced, so a meeting booked on the server turns into a Busy block once Calendar has picked it up.
 
@@ -65,7 +65,7 @@ An event counts as busy unless it's marked free or you declined it. Invitations 
 
 Meetings… in the menu, or the button next to the status in Settings, opens a window with every meeting BusySign looks at, grouped by the calendar it comes from. A ticked meeting gets a Busy block in the other calendars its calendar copies to, untick it and BusySign leaves it out. A recurring series is one row with one checkbox for the whole series - open it to tick or untick single days, and the box shows a dash when only some days are copied. Meetings BusySign doesn't copy anyway, declined or marked free for example, are listed greyed with the reason. These ticks wait for Apply like the settings do, with the same bar at the bottom of the window, and until then the header says "Changes not applied" instead of the counts. In Live the next sync after Apply writes them, and the rows then say what was added, moved or removed. The titles show only in this window on this Mac, unless you let a calendar's copies show them as described below, and BusySign keeps your choices on this Mac as well, as opaque keys rather than titles.
 
-<p align="center"><img src="docs/images/meetings.png" alt="The Meetings window with meetings per calendar, Title boxes and Not copied" width="752"></p>
+<p align="center"><img src="docs/images/meetings.png" alt="The Meetings window with meetings per calendar, Title boxes and Not copied" width="640"></p>
 
 ## What the copies look like
 
