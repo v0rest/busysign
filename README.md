@@ -8,7 +8,7 @@ It works through the accounts you already have in Calendar (System Settings → 
 
 - macOS 15 Sequoia or later
 - [Homebrew](https://brew.sh) - if your Mac is managed and you can't install it yourself, ask your IT
-- Xcode Command Line Tools (`xcode-select --install`), full Xcode is not needed
+- Xcode Command Line Tools (`xcode-select --install`) on an Intel Mac, where Homebrew builds from source - Homebrew's installer usually sets them up already; full Xcode is not needed
 - the calendars you want to sync, already showing up in macOS Calendar
 
 You don't need admin rights to install or run it.
@@ -21,7 +21,7 @@ brew install v0rest/tap/busysign
 
 The full name matters. Homebrew only loads formulae from third-party taps you trust, and naming the formula in full adds the tap and trusts this one formula in one go. A plain `brew install busysign` would be refused.
 
-Homebrew builds the app from source on your Mac with the Swift compiler from the Command Line Tools and signs it ad hoc, since there is no paid Apple developer account behind it. The app stays in Homebrew's folder, not in /Applications, and you start it with
+On a Mac with Apple silicon Homebrew downloads a ready build, made and tested on macOS 15, 26 and 27 - a newer macOS gets the newest of them. On an Intel Mac it builds the app from source with the Swift compiler from the Command Line Tools, which takes a little longer. Either way the app is signed ad hoc, since there is no paid Apple developer account behind it. It stays in Homebrew's folder, not in /Applications, and you start it with
 
 ```sh
 open "$(brew --prefix)/opt/busysign/BusySign.app"
@@ -71,7 +71,7 @@ Apart from the titles you choose to show, no details of your meetings leave the 
 
 ## After every upgrade
 
-`brew upgrade busysign` builds a new app, and since it's signed ad hoc, macOS treats every new build as a different app and asks for calendar access again. So after each upgrade quit BusySign from its menu, open it again with the `open` command above and allow calendar access. If macOS doesn't ask and Settings says "Calendar access needed", click Open Privacy Settings and switch BusySign on under Privacy & Security → Calendars.
+`brew upgrade busysign` installs a new build, and since it's signed ad hoc, macOS treats every new build as a different app and asks for calendar access again. So quit BusySign from its menu before you upgrade, then open it again with the `open` command above and allow calendar access. If macOS doesn't ask and Settings says "Calendar access needed", click Open Privacy Settings and switch BusySign on under Privacy & Security → Calendars.
 
 ## Using more than one Mac
 
